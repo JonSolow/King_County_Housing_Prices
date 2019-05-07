@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[12]:
+# In[6]:
 
 
 # for deleting python script to easily resave with same name
@@ -21,8 +21,10 @@ get_ipython().run_line_magic('matplotlib', 'inline')
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
 import seaborn as sns
+from sklearn import preprocessing
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import KFold
 from sklearn.model_selection import GridSearchCV
 from sklearn.linear_model import Ridge
 from sklearn.linear_model import Lasso
@@ -36,7 +38,7 @@ def clean_datafield(data, col_name, convert_type=None, val_to_replace=None, val_
     Returns a pandas series of clean values
     """
     outval = pd.Series()
-    if val_to_replace != []:
+    if val_to_replace != None:
         if type(val_replacement) == list:
             # pass
             outval = np.where(data[col_name] == val_to_replace, sum(
@@ -119,7 +121,7 @@ def scatter_y(df, y, ncols=3, figsize=(16, 20), wspace=0.2, hspace=0.5, alpha=0.
 
     for i, xcol in enumerate(df_col_list):
         try:
-            df.plot(kind='scatter', x=xcol, y='price',
+            df.plot(kind='scatter', x=xcol, y=y,
                     ax=axes[i//ncols, i % ncols], label=xcol, alpha=alpha, color=color)
             plt.plot()
         except:
@@ -134,6 +136,21 @@ def create_dummyframe(df, listofcolumns):
     for cat_col in listofcolumns:
         df_dummy = pd.concat([df_dummy, pd.get_dummies(df[cat_col], prefix=cat_col)], axis=1)
     return df_dummy
+
+
+# In[4]:
+
+
+def create_season(month):
+    month = str(month)
+    if month in ['12', '1', '2']:
+        return 'Winter'
+    elif month in ['3', '4', '5']:
+        return 'Spring'
+    elif month in ['6', '7', '8']:
+        return 'Summer'
+    elif month in ['9', '10', '11']:
+        return 'Fall'
 
 
 # In[ ]:
