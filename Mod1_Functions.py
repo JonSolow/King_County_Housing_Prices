@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[1]:
 
 
 # for deleting python script to easily resave with same name
 #!rm Mod1_Functions.py
 
 
-# In[7]:
+# In[4]:
 
 
 import pandas as pd
@@ -28,6 +28,21 @@ from sklearn.model_selection import KFold
 from sklearn.model_selection import GridSearchCV
 from sklearn.linear_model import Ridge
 from sklearn.linear_model import Lasso
+from sklearn.feature_selection import RFE
+import scipy.stats as stats
+
+
+# In[ ]:
+
+
+import warnings
+
+def fxn():
+    warnings.warn("deprecated", DeprecationWarning)
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    fxn()
 
 
 # In[110]:
@@ -106,7 +121,7 @@ def set_to_categorical(df, listofcolumns):
         df[col] = df[col].astype('category')
 
 
-# In[5]:
+# In[7]:
 
 
 def scatter_y(df, y, ncols=3, figsize=(16, 20), wspace=0.2, hspace=0.5, alpha=0.05, color='b'):
@@ -156,5 +171,25 @@ def create_season(month):
 # In[ ]:
 
 
-
+def findcorrpairs(df, corr_thresh=0.75, round=2):
+    corr_mx = df.corr()
+    pairs_list = []
+    corr_list = []
+    for col in corr_mx.columns:
+        for col2 in corr_mx.columns:
+            if col != col2:
+                pair_corr = corr_mx[col][col2]
+                if abs(pair_corr)>corr_thresh:
+                    col_sort = [col, col2]
+                    col_sort.sort()
+                    pairs_list.append(col_sort)
+                    corr_list.append(pair_corr.round(round))
+    df_out = pd.DataFrame()
+    df_out['Pairs'] = pairs_list
+    df_out['PairsText'] = df_out['Pairs'].astype('str')
+    df_out['Correlation'] = corr_list
+    df_out.drop_duplicates(subset='PairsText', inplace = True)
+    df_out.sort_values('Correlation', ascending=False, inplace=True)
+    df_out.drop('PairsText',  axis=1, inplace=True)
+    return df_out
 
