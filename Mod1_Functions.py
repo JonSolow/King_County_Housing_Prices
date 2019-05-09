@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[9]:
+# In[1]:
 
 
 # for deleting python script to easily resave with same name
@@ -32,6 +32,8 @@ from sklearn.feature_selection import RFE
 import scipy.stats as stats
 import math
 from math import radians, cos, sin, asin, sqrt
+
+from sklearn.model_selection import train_test_split
 
 
 # In[ ]:
@@ -200,7 +202,7 @@ def findcorrpairs(df, corr_thresh=0.75, round=2):
 
 
 def bathroom_bins(bathroom):
-   return math.ceil(bathroom)
+    return math.ceil(bathroom)
 
 
 # In[ ]:
@@ -208,33 +210,33 @@ def bathroom_bins(bathroom):
 
 
 def haversine(lon1, lat1, lon2, lat2):
-   """
-   Calculate the great circle distance between two points
-   on the earth (specified in decimal degrees)
-   """
-   # convert decimal degrees to radians
-   lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
-   # haversine formula
-   dlon = lon2 - lon1
-   dlat = lat2 - lat1
-   a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-   c = 2 * asin(sqrt(a))
-   # Radius of earth in kilometers is 6371
-   km = 6371* c
-   return km
+    """
+    Calculate the great circle distance between two points
+    on the earth (specified in decimal degrees)
+    """
+    # convert decimal degrees to radians
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+    # haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a))
+    # Radius of earth in kilometers is 6371
+    km = 6371* c
+    return km
 
 
 # In[ ]:
 
 
 def historic_home(age):
-   if age>=80:
-       return 1
-   else:
-       return 0
+    if age>=80:
+        return 1
+    else:
+        return 0
 
 
-# In[4]:
+# In[6]:
 
 
 def add_features_to_df(df):
@@ -298,6 +300,11 @@ def add_features_to_df(df):
     except:
         print('Error: date and/or yr_built was not found in dataframe.  age and historic_home could not be created') 
         
+    try:
+        df_out['grade_bin'] = df_out.grade.apply(grade_bins)
+    except:
+        print('Error: grade was not found in dataframe.  grade_bin could not be created') 
+    
     return df_out
 
 
@@ -325,6 +332,18 @@ def filter_df_quantiles(df, filter_dict):
     print('{} total records removed'.format(len(df) - len(df_filter)))
         
     return df_filter
+
+
+# In[5]:
+
+
+def grade_bins(grade):
+    if grade >= 11:
+        return 11
+    elif grade <= 5:
+        return 5
+    else:
+        return grade
 
 
 # In[ ]:
