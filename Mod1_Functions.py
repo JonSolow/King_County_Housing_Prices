@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[9]:
 
 
 # for deleting python script to easily resave with same name
@@ -30,6 +30,8 @@ from sklearn.linear_model import Ridge
 from sklearn.linear_model import Lasso
 from sklearn.feature_selection import RFE
 import scipy.stats as stats
+import math
+from math import radians, cos, sin, asin, sqrt
 
 
 # In[ ]:
@@ -192,4 +194,141 @@ def findcorrpairs(df, corr_thresh=0.75, round=2):
     df_out.sort_values('Correlation', ascending=False, inplace=True)
     df_out.drop('PairsText',  axis=1, inplace=True)
     return df_out
+
+
+# In[ ]:
+
+
+def bathroom_bins(bathroom):
+   return math.ceil(bathroom)
+
+
+# In[ ]:
+
+
+
+def haversine(lon1, lat1, lon2, lat2):
+   """
+   Calculate the great circle distance between two points
+   on the earth (specified in decimal degrees)
+   """
+   # convert decimal degrees to radians
+   lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+   # haversine formula
+   dlon = lon2 - lon1
+   dlat = lat2 - lat1
+   a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+   c = 2 * asin(sqrt(a))
+   # Radius of earth in kilometers is 6371
+   km = 6371* c
+   return km
+
+
+# In[ ]:
+
+
+def historic_home(age):
+   if age>=80:
+       return 1
+   else:
+       return 0
+
+
+# In[4]:
+
+
+def add_features_to_df(df):
+    """Output is a new dataframe with our additional features added"""
+    df_out = df.copy()
+    try:
+        df_out['month'] = df_out['date'].map(lambda x: x.month)
+        df_out['season'] = df_out['month'].apply(create_season)
+    except:
+        print('Error: date was not found in dataframe.  Month and season could not be created')
+
+    try:
+        df_out['has_basement'] = df_out['sqft_basement'].apply(
+            lambda x: 1 if x > 0 else 0)
+    except:
+        print('Error: sqft_basement was not found in dataframe.  has_basement could not be created')
+
+    try:
+        df_out['sqft_above_tophalf'] = df_out['sqft_above'].apply(
+            lambda x: 1 if x > df_out['sqft_above'].mean() else 0)
+    except:
+        print('Error: sqft_above was not found in dataframe.  sqft_above_tophalf could not be created')
+
+    try:
+        df_out['zip_highprice'] = df_out['zipcode'].apply(
+        lambda x: 1 if x in [98004, 98039, 98040, 98112] else 0)
+    except:
+        print('Error: zipcode was not found in dataframe.  zip_highprice could not be created')
+
+# Set number of years to consider recent renovation
+    try:
+        n_years = 15
+        df_out['yr_renovated_cat'] = df_out['yr_renovated'].apply(
+            renovated_cat, n_years=n_years)
+    except:
+        print('Error: yr_renovated was not found in dataframe.  yr_renovated_cat could not be created')
+
+    
+    try:
+        df_out['startdate'] = pd.Timestamp('19700101')
+        df_out['date_num'] = (df_out['date'] - df_out['startdate']).dt.days
+    except:
+        print('Error: date was not found in dataframe.  date_num could not be created')
+
+    try:
+        # Calculated Distance from City Center
+        df_out['dist_city_center'] = df_out.apply(
+            lambda x: haversine(-122.3344, 47.6050, x.loc['long'], x.loc['lat']), axis=1)
+    except:
+        print('Error: long and/or lat was not found in dataframe.  dist_city_center could not be created')
+        
+        
+    try:
+        df_out['bathroom_bins'] = df_out.bathrooms.apply(bathroom_bins)
+    except:
+        print('Error: bathrooms was not found in dataframe.  bathroom_bins could not be created')
+        
+    try:
+        df_out['age'] = df_out['date'].apply(lambda x: x.year) - df_out['yr_built']
+        df_out['historic_home'] = df_out.age.apply(historic_home)
+    except:
+        print('Error: date and/or yr_built was not found in dataframe.  age and historic_home could not be created') 
+        
+    return df_out
+
+
+# In[12]:
+
+
+def filter_df_quantiles(df, filter_dict):
+    df_filter = df.copy()
+
+    for k, v in filter_dict.items():
+        min_lim = df[k].quantile(v[0])
+        max_lim = df[k].quantile(v[1])
+
+        n_less = len(df_filter[df_filter[k] < min_lim])
+        n_greater = len(df_filter[df_filter[k] > max_lim])
+
+        filter1 = df_filter[k] >= min_lim
+        filter2 = df_filter[k] <= max_lim
+
+        print('filtered out {0} records with {1} less than: {2:.2f}'.format(n_less, k, min_lim))
+        print('filtered out {0} records with {1} greater than: {2:.2f}'.format(n_greater,  k, max_lim))
+
+        df_filter = df_filter[filter1 & filter2]
+
+    print('{} total records removed'.format(len(df) - len(df_filter)))
+        
+    return df_filter
+
+
+# In[ ]:
+
+
+
 
