@@ -8,7 +8,7 @@
 #!rm Mod1_Functions.py
 
 
-# In[11]:
+# In[4]:
 
 
 import pandas as pd
@@ -402,13 +402,18 @@ def plot_mse_train_test(x, y, start_test_pct=5, test_pct_inc=5, end_test_pct=100
     plt.show()
 
 
-# In[3]:
+# In[2]:
 
 
-def residual_hist_qq(model):
+def residual_hist_qq(model, figsize=(16, 6)):
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=figsize)
     resid1 = model.resid
-    resid1.hist()
-    fig = sm.graphics.qqplot(resid1, dist=stats.norm, line='45', fit=True)
+    resid1.hist(ax=axes[0], label="Frequency of Residuals")
+    axes[0].legend()
+    axes[0].set
+    axes[0].set_xlabel('Residuals (Y_Actual - Y_Predicted)')
+    axes[0].set_ylabel('Frequency')
+    sm.graphics.qqplot(resid1, dist=stats.norm, line='45', fit=True, ax=axes[1])
     fig.show()
 
 
