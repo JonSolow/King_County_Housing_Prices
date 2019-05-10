@@ -594,7 +594,7 @@ def interpret_coef(model, df_original, categorical_columns=[], log_list=[],  min
         else:
             interpret.append("Price is expected to increase by {0:.4f}% for each unit increment in {1}".format(
                 adj_coef[i], col))
-    return pd.DataFrame(list(zip(list(var_coef.keys()), list(var_coef.values), interpret)), columns=['variable', 'coef', 'interpretation'])
+    return pd.DataFrame(list(zip(list(var_coef.keys()), list(var_coef.values),adj_coef,  interpret)), columns=['variable', 'coef', 'adj_coef', 'interpretation'])
 
 
 # In[21]:
