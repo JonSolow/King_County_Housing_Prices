@@ -136,6 +136,10 @@ def set_to_categorical(df, listofcolumns):
 
 def scatter_y(df, y, ncols=3, figsize=(16, 20), wspace=0.2, hspace=0.5, alpha=0.05, color='b'):
     df_col_list = list(df.columns)
+    try:
+        df_col_list.remove(y)
+    except:
+        pass
     if (len(df_col_list) % ncols > 0):
         nrows = len(df_col_list)//ncols + 1
     else:
@@ -451,7 +455,7 @@ def plot_RFE_var_iter(X, Y, k_fold_n_splits=5, shuffle=True, scoring='neg_mean_s
 # In[3]:
 
 
-def preprocess_data(df, categorical_columns=[], log_list=[],  min_max_list=[], std_scal_list=[], dropout_list=[]):
+def preprocess_data(df, categorical_columns=[], log_list=[],  min_max_list=[], std_scal_list=[], dropout_list=[], cat_drop_dict={}):
     """Custom preprocessing"""
 
 
@@ -472,8 +476,11 @@ def preprocess_data(df, categorical_columns=[], log_list=[],  min_max_list=[], s
         drop_list = []
 
         for drop_col in list(df_temp.dtypes[df_temp.dtypes == 'category'].keys()):
-            field_name = drop_col + '_' +                 str(df_temp[drop_col].cat.categories[0])
-      #      print('dropped {} to avoid multicollinearity'.format(field_name))
+            try:
+                field_name = cat_drop_dict[drop_col]
+            except:
+                field_name = drop_col + '_' + str(df_temp[drop_col].cat.categories[0])
+
             drop_list.append(field_name)
 
         df_dummy.drop(drop_list, axis=1, inplace=True)
@@ -594,7 +601,7 @@ def interpret_coef(model, df_original, categorical_columns=[], log_list=[],  min
         else:
             interpret.append("Price is expected to increase by {0:.4f}% for each unit increment in {1}".format(
                 adj_coef[i], col))
-    return pd.DataFrame(list(zip(list(var_coef.keys()), list(var_coef.values), interpret)), columns=['variable', 'coef', 'interpretation'])
+    return pd.DataFrame(list(zip(list(var_coef.keys()), list(var_coef.values),adj_coef,  interpret)), columns=['variable', 'coef', 'adj_coef', 'interpretation'])
 
 
 # In[21]:
