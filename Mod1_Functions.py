@@ -8,7 +8,7 @@
 #!rm Mod1_Functions.py
 
 
-# In[4]:
+# In[11]:
 
 
 import pandas as pd
@@ -34,6 +34,12 @@ import math
 from math import radians, cos, sin, asin, sqrt
 
 from sklearn.model_selection import train_test_split
+
+
+# In[ ]:
+
+
+sns.set()
 
 
 # In[ ]:
@@ -236,6 +242,12 @@ def historic_home(age):
         return 0
 
 
+# In[12]:
+
+
+df_out=pd.DataFrame
+
+
 # In[6]:
 
 
@@ -278,6 +290,7 @@ def add_features_to_df(df):
     try:
         df_out['startdate'] = pd.Timestamp('19700101')
         df_out['date_num'] = (df_out['date'] - df_out['startdate']).dt.days
+        df_out.drop(['startdate'], axis=1)
     except:
         print('Error: date was not found in dataframe.  date_num could not be created')
 
@@ -344,6 +357,232 @@ def grade_bins(grade):
         return 5
     else:
         return grade
+
+
+# In[1]:
+
+
+def plot_mse_train_test(x, y, start_test_pct=5, test_pct_inc=5, num_iter=50):   
+    linreg = LinearRegression()
+
+    mse_train_list = []
+    mse_test_list = []
+    s_list = []
+    
+    for s in range(start_test_pct, 100, test_pct_inc):
+        mse_train_sum = 0
+        mse_test_sum = 0
+        for i in range(num_iter):
+            X_train, X_test, y_train, y_test = train_test_split(x, y, test_size = s/100)
+            linreg.fit(X_train, y_train)
+            y_hat_train = linreg.predict(X_train)
+            y_hat_test = linreg.predict(X_test)
+            train_residuals = y_hat_train - y_train
+            test_residuals = y_hat_test - y_test
+            mse_train = np.sum((y_train-y_hat_train)**2)/len(y_train)
+            mse_test =np.sum((y_test-y_hat_test)**2)/len(y_test)
+            mse_train_sum += mse_train
+            mse_test_sum += mse_test 
+
+        mse_train_list.append(mse_train_sum / num_iter)
+        mse_test_list.append(mse_test_sum / num_iter)
+        s_list.append(s)
+
+
+    plt.figure(figsize=(10,6))
+    sns.scatterplot(s_list, mse_train_list, label="Training Error")
+    sns.scatterplot(s_list, mse_test_list, label="Testing Error")
+    plt.xlabel('Testing Data Size as Percentage of Total Dataset')
+    plt.ylabel('Mean Square Error (Average of {} trials)'.format(num_iter))
+    plt.legend()
+    plt.show()
+
+
+# In[3]:
+
+
+def residual_hist_qq(model):
+    resid1 = model.resid
+    resid1.hist()
+    fig = sm.graphics.qqplot(resid1, dist=stats.norm, line='45', fit=True)
+    fig.show()
+
+
+# In[9]:
+
+
+def plot_RFE_var_iter(X, Y, k_fold_n_splits=5, shuffle=True, scoring='neg_mean_squared_error'):
+
+
+    n = len(X.columns)
+
+    mse_list = []
+    r2_list = []
+    num_var = list(range(1, n+1))
+
+    for i in range(n):
+        linreg = LinearRegression()
+        selector = RFE(linreg, n_features_to_select=i+1)
+        selector = selector.fit(X, Y.squeeze())
+        selected_X = X.columns[selector.support_]
+        df_selected = X.loc[:, selected_X]
+        df_selected = sm.add_constant(df_selected)
+        model_kfold = KFold(n_splits=k_fold_n_splits, shuffle=shuffle)
+        MSEs = cross_val_score(linreg, df_selected, Y,
+                               scoring=scoring, cv=model_kfold)
+        mean_MSE = -1 * np.mean(MSEs)
+        model = sm.OLS(Y, df_selected).fit()
+
+        r2_list.append(model.rsquared_adj)
+        mse_list.append(mean_MSE)
+
+    plt.figure(figsize=(10, 7))
+    plt.plot(r2_list, label='Adjusted $r^{2}$')
+    plt.xlabel(r"Number of X Variables Included in Model")
+    plt.ylabel(r"Mean Squared Error / Adjusted r squared")
+    plt.title("MSE and Adjusted $r^{2}$ versus Number of Model Variables")
+    plt.legend()
+
+    plt.plot(mse_list, label='Mean Squared Error')
+    plt.legend()
+    plt.show()
+
+
+# In[19]:
+
+
+def preprocess_data(df, categorical_columns=[], log_list=[],  min_max_list=[], std_scal_list=[], dropout_list=[]):
+    """Custom preprocessing"""
+
+
+# create temporary data frame to work with
+    df_temp = df.copy()
+
+# handle categorical columns
+# set to categorical, then dummy out and store in df_dummy
+    if len(categorical_columns) > 0:
+        set_to_categorical(df_temp, categorical_columns)
+
+        print("Categorical Variables:")
+        print(df_temp.dtypes[df_temp.dtypes == 'category'])
+        print("\n")
+
+        df_dummy = create_dummyframe(df_temp, categorical_columns)
+
+        drop_list = []
+
+        for drop_col in list(df_temp.dtypes[df_temp.dtypes == 'category'].keys()):
+            field_name = drop_col + '_' +                 str(df_temp[drop_col].cat.categories[0])
+      #      print('dropped {} to avoid multicollinearity'.format(field_name))
+            drop_list.append(field_name)
+
+        df_dummy.drop(drop_list, axis=1, inplace=True)
+        print('To avoid multicollinearity, the following datafields were dropped: {}'.format(", ".join(drop_list)))
+        df_temp.drop(categorical_columns, axis=1, inplace=True)
+    else:
+        print('no categorical dummy columns added')
+        df_dummy = pd.DataFrame()
+
+        
+
+#  natural log of variables, note return of 0 for non-positive values
+    if len(log_list) > 0:
+        print('\n')
+        for i in log_list:
+            df_temp[i] = df_temp[i].apply(lambda x: np.log(x) if x > 0 else 0)
+        print('Converted the following datafields to natural log: {}'.format(", ".join(log_list)))
+
+
+# Min Max scaling
+    print('\n')
+    if len(min_max_list) > 0:
+        min_max_scaler = preprocessing.MinMaxScaler()
+        X_min_max = pd.DataFrame(columns=min_max_list)
+        for col_name in min_max_list:
+            X_min_max[col_name] = df_temp[col_name]
+            print('Converted {0} to scale min-max: [{1:.2f}, {2:.2f}] to [0,1]'.format(
+                col_name, df_temp[col_name].min(), df_temp[col_name].max()))
+
+        X_min_max = pd.DataFrame(data=min_max_scaler.fit_transform(
+            X_min_max.values), columns=X_min_max.columns, index=X_min_max.index)
+        df_temp.drop(min_max_list, axis=1, inplace=True)
+    else:
+        X_min_max = pd.DataFrame()
+        print('No variables scaled with min-max scaler')
+
+
+# Standard scaling
+    print('\n')
+    if len(std_scal_list) > 0:
+        standard_scaler = preprocessing.StandardScaler()
+        X_std_scal = pd.DataFrame(columns=std_scal_list)
+        for col_name in std_scal_list:
+            X_std_scal[col_name] = df_temp[col_name]
+            print('Standardized {0} to scale with mean=0 and std=1 from: [{1:.3f}, {2:.3f}] to [0,1]'.format(
+                col_name, df_temp[col_name].mean(), df_temp[col_name].std()))
+
+        X_std_scal = pd.DataFrame(data=standard_scaler.fit_transform(
+            X_std_scal.values), columns=X_std_scal.columns, index=X_min_max.index)
+        df_temp.drop(std_scal_list, axis=1, inplace=True)
+    else:
+        X_std_scal = pd.DataFrame()
+        print('No variables scaled with standard scaler')
+
+# drop any columns in the drop list
+    if len(dropout_list)>0:
+        print('\n')
+        df_temp.drop(dropout_list, axis=1, inplace=True)
+        print("Dropped {} from the output dataset".format(", ".join(dropout_list)))
+        
+# concatenate all of these dataframes
+    X_possible = pd.concat([X_min_max, X_std_scal, df_temp, df_dummy], axis=1)
+    
+    return X_possible
+
+
+# In[20]:
+
+
+def interpret_coef(model, df_original, categorical_columns=[], log_list=[],  min_max_list=[], std_scal_list=[]):
+
+    var_coef = model.params[1:]
+    adj_coef = []
+    interpret = []
+
+    for col, coef in var_coef.items():
+        if col in min_max_list:
+            adj_coef.append((np.exp(coef)-1) * 100 /
+                            (df_original[col].max() - df_original[col].min()))
+
+        elif col in std_scal_list:
+            adj_coef.append((np.exp(coef)-1) * 100 / (df_original[col].std()))
+
+        elif col in log_list:
+            adj_coef.append(coef)
+        else:
+            adj_coef.append((np.exp(coef)-1) * 100)
+
+    for i, col in enumerate(var_coef.keys()):
+        if col in (min_max_list + std_scal_list):
+            interpret.append("Price is expected to increase by {0:.4f}% for each unit increment beyond {1:.2f} in {2}".format(
+                adj_coef[i], df_original[col].min(), col))
+
+        elif col in log_list:
+            interpret.append(
+                "Price is expected to increase by {0:.4f}% for each 1% increase in {1}".format(adj_coef[i], col))
+        elif str(col).split('_')[0] in categorical_columns:
+            interpret.append(
+                "Price is expected to increase by {0:.4f}% if condition met for {1}".format(adj_coef[i], col))
+        else:
+            interpret.append("Price is expected to increase by {0:.4f}% for each unit increment in {1}".format(
+                adj_coef[i], col))
+    return pd.DataFrame(list(zip(list(var_coef.keys()), list(var_coef.values), interpret)), columns=['variable', 'coef', 'interpretation'])
+
+
+# In[21]:
+
+
+from IPython.display import HTML
 
 
 # In[ ]:
