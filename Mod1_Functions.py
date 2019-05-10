@@ -359,17 +359,17 @@ def grade_bins(grade):
         return grade
 
 
-# In[1]:
+# In[4]:
 
 
-def plot_mse_train_test(x, y, start_test_pct=5, test_pct_inc=5, num_iter=50):   
+def plot_mse_train_test(x, y, start_test_pct=5, test_pct_inc=5, end_test_pct=100, num_iter=50):   
     linreg = LinearRegression()
 
     mse_train_list = []
     mse_test_list = []
     s_list = []
     
-    for s in range(start_test_pct, 100, test_pct_inc):
+    for s in range(start_test_pct, end_test_pct, test_pct_inc):
         mse_train_sum = 0
         mse_test_sum = 0
         for i in range(num_iter):
@@ -448,7 +448,7 @@ def plot_RFE_var_iter(X, Y, k_fold_n_splits=5, shuffle=True, scoring='neg_mean_s
     plt.show()
 
 
-# In[19]:
+# In[3]:
 
 
 def preprocess_data(df, categorical_columns=[], log_list=[],  min_max_list=[], std_scal_list=[], dropout_list=[]):
@@ -531,9 +531,27 @@ def preprocess_data(df, categorical_columns=[], log_list=[],  min_max_list=[], s
 # drop any columns in the drop list
     if len(dropout_list)>0:
         print('\n')
-        df_temp.drop(dropout_list, axis=1, inplace=True)
-        print("Dropped {} from the output dataset".format(", ".join(dropout_list)))
+        for col in dropout_list:
+            try:
+                df_temp.drop(col, axis=1, inplace=True)
+                print("Dropped {} from the output dataset".format(col))
+            except:
+                try:
+                    df_dummy.drop(col, axis=1, inplace=True)
+                    print("Dropped {} from the output dataset".format(col))
+                except:
+                    try:
+                        X_min_max.drop(col, axis=1, inplace=True)
+                        print("Dropped {} from the output dataset".format(col))
+                    except:
+                        try:
+                            X_std_scal.drop(col, axis=1, inplace=True)
+                            print("Dropped {} from the output dataset".format(col))
+                        except:
+                            print('Could not find {} to drop'.format(col))
+                    
         
+    
 # concatenate all of these dataframes
     X_possible = pd.concat([X_min_max, X_std_scal, df_temp, df_dummy], axis=1)
     
