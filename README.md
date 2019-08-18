@@ -1310,4 +1310,326 @@ df_Interpretation.iloc[(-(df_Interpretation['adj_coef'].abs())).argsort()]
 </table>
 
 
+# XGBoost Regressor
+
+We can try for a bit of improvement with the XGBoost Regressor.
+
+XGBoost is based on decision tree models, with the structure being automatically pruned based to produce the best results.
+
+
+```python
+import xgboost as xgb
+```
+
+## XGBoost Feature Selection
+
+
+```python
+df_filter.columns
+```
+
+
+
+
+    Index(['id', 'date', 'price', 'bedrooms', 'bathrooms', 'sqft_living',
+           'sqft_lot', 'floors', 'waterfront', 'view', 'condition', 'grade',
+           'sqft_above', 'sqft_basement', 'yr_built', 'yr_renovated', 'zipcode',
+           'lat', 'long', 'sqft_living15', 'sqft_lot15', 'month', 'season',
+           'has_basement', 'sqft_above_tophalf', 'zip_highprice',
+           'yr_renovated_cat', 'startdate', 'date_num', 'dist_city_center',
+           'bathroom_bins', 'age', 'historic_home', 'grade_bin', 'log_price'],
+          dtype='object')
+
+
+
+
+```python
+categorical_columns = ['waterfront', 'view', 'condition',
+                       'yr_renovated_cat', 'season', 'zipcode',
+                       'bathrooms', 'bedrooms', 'grade', 'floors']
+
+cat_drop_dict = {'condition': 'condition_3', 'grade_bin': 'grade_bin_7'}
+
+log_list = ['sqft_above', 'sqft_basement',
+            'sqft_living15', 'sqft_lot']
+
+
+min_max_list = ['yr_built', 'date_num',]
+
+dropout_list = ['price', 'id', 'date',
+                 'lat', 'long', 'log_price', 'month', 'sqft_above_tophalf',
+                 'sqft_basement', 'startdate', 'sqft_living', 'age', 'sqft_lot15',
+                 'yr_renovated', 'yr_renovated_cat_missing', 'waterfront_missing', 
+                 'yr_renovated_cat_Prior to 2000', 'season_Summer', 'season_Winter',
+                 'sqft_living15']
+
+
+X_xgbr = preprocess_data(df_filter, categorical_columns=categorical_columns, log_list=log_list,
+                             min_max_list=min_max_list, dropout_list=dropout_list, cat_drop_dict=cat_drop_dict)
+Y_xgbr = df_filter['price']
+```
+
+    Categorical Variables:
+    bedrooms            category
+    bathrooms           category
+    floors              category
+    waterfront          category
+    view                category
+    condition           category
+    grade               category
+    zipcode             category
+    season              category
+    yr_renovated_cat    category
+    dtype: object
+    
+    
+    To avoid multicollinearity, the following datafields were dropped: bedrooms_1, bathrooms_0.5, floors_1.0, waterfront_0.0, view_0.0, condition_3, grade_3, zipcode_98001, season_Fall, yr_renovated_cat_Never Renovated
+    
+    
+    Converted the following datafields to natural log: sqft_above, sqft_basement, sqft_living15, sqft_lot
+    
+    
+    Converted yr_built to scale min-max: [1900.00, 2015.00] to [0,1]
+    Converted date_num to scale min-max: [16192.00, 16582.00] to [0,1]
+    
+    
+    No variables scaled with standard scaler
+    
+    
+    Dropped price from the output dataset
+    Dropped id from the output dataset
+    Dropped date from the output dataset
+    Dropped lat from the output dataset
+    Dropped long from the output dataset
+    Dropped log_price from the output dataset
+    Dropped month from the output dataset
+    Dropped sqft_above_tophalf from the output dataset
+    Dropped sqft_basement from the output dataset
+    Dropped startdate from the output dataset
+    Dropped sqft_living from the output dataset
+    Dropped age from the output dataset
+    Dropped sqft_lot15 from the output dataset
+    Dropped yr_renovated from the output dataset
+    Dropped yr_renovated_cat_missing from the output dataset
+    Dropped waterfront_missing from the output dataset
+    Dropped yr_renovated_cat_Prior to 2000 from the output dataset
+    Dropped season_Summer from the output dataset
+    Dropped season_Winter from the output dataset
+    Dropped sqft_living15 from the output dataset
+
+
+## Baseline XGBoost Regressor
+
+
+```python
+xgbr = xgb.XGBRegressor()
+```
+
+
+```python
+xgbr.fit(X_xgbr, Y_xgbr)
+```
+
+    [04:41:44] WARNING: /workspace/src/objective/regression_obj.cu:152: reg:linear is now deprecated in favor of reg:squarederror.
+
+
+
+
+
+    XGBRegressor(base_score=0.5, booster='gbtree', colsample_bylevel=1,
+                 colsample_bynode=1, colsample_bytree=1, gamma=0,
+                 importance_type='gain', learning_rate=0.1, max_delta_step=0,
+                 max_depth=3, min_child_weight=1, missing=None, n_estimators=100,
+                 n_jobs=1, nthread=None, objective='reg:linear', random_state=0,
+                 reg_alpha=0, reg_lambda=1, scale_pos_weight=1, seed=None,
+                 silent=None, subsample=1, verbosity=1)
+
+
+
+
+```python
+y_hat_exp = xgbr.predict(X_xgbr)
+y_exp = Y_xgbr
+
+plt.figure(figsize=(10,10))
+sns.scatterplot(y_exp, y_hat_exp, alpha=0.05)
+plt.xlabel('Actual Price')
+plt.ylabel('Predicted Price')
+limiter = 2000000
+plt.xlim(0, limiter)
+plt.ylim(0, limiter)
+plt.title('Predicted Price versus Actual')
+sns.lineplot(x=[0, limiter], y=[0, limiter]);
+plt.show()
+
+
+plt.figure(figsize=(10,10))
+sns.scatterplot(y_exp, y_exp - y_hat_exp, alpha=0.05)
+plt.xlabel('Actual Price')
+plt.ylabel('Residual')
+plt.xlim(0,limiter)
+plt.ylim(-500000,500000)
+plt.title('Residual Plot versus Actual Price')
+sns.lineplot(x=[0,6000000], y=[0, 0]);
+```
+
+
+![png](images/output_105_0.png)
+
+
+
+![png](images/output_105_1.png)
+
+
+
+```python
+y_limit = 10000000
+y_exp_filter = y_exp[y_exp < y_limit]
+y_hat_exp_filter = y_hat_exp[y_exp < y_limit]
+
+
+print('**For prices under ${:,}**:'.format(y_limit))
+print('Average Absolute Error: ${0:,.0f}'.format(np.mean(abs(y_exp_filter - y_hat_exp_filter))))
+print('Average Percent Error: {0:.2f}%'.format(100 * np.mean(abs(y_exp_filter - y_hat_exp_filter)) / y_exp_filter.mean()))
+print('Average of Absolute Error for each: {0:.2f}%'.format(100*np.mean(abs(y_exp_filter - y_hat_exp_filter)/y_exp_filter)))
+```
+
+    **For prices under $10,000,000**:
+    Average Absolute Error: $88,045
+    Average Percent Error: 16.30%
+    Average of Absolute Error for each: 18.43%
+
+
+## RandomizedSearch for best hyperparameters of XGBoost Regressor
+
+
+```python
+def timer(start_time=None):
+    if not start_time:
+        start_time = datetime.now()
+        return start_time
+    elif start_time:
+        thour, temp_sec = divmod((datetime.now() - start_time).total_seconds(), 3600)
+        tmin, tsec = divmod(temp_sec, 60)
+        print('\n Time taken: %i hours %i minutes and %s seconds.' % (thour, tmin, round(tsec, 2)))
+
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.model_selection import StratifiedKFold
+from datetime import datetime
+
+
+# A parameter grid for XGBoost
+params = {
+        'min_child_weight': [1, 5, 10],
+        'gamma': [0, 0.5, 1, 1.5, 2, 5],
+        'subsample': [0.6, 0.8, 1.0],
+        'colsample_bytree': [0.6, 0.8, 1.0],
+        'max_depth': [3, 4, 5]
+        }
+
+
+
+folds = 3
+param_comb = 50
+
+skf = StratifiedKFold(n_splits=folds, shuffle = True, random_state = 42)
+
+random_search = RandomizedSearchCV(xgbr, param_distributions=params, n_iter=param_comb, scoring='neg_mean_absolute_error', n_jobs=4, cv=skf.split(X_xgbr, Y_xgbr), verbose=3, random_state=1001 )
+
+# Here we go
+start_time = timer(None) # timing starts from this point for "start_time" variable
+random_search.fit(X_xgbr, Y_xgbr)
+timer(start_time) # timing ends here for "start_time" variable
+
+```
+
+    Fitting 3 folds for each of 50 candidates, totalling 150 fits
+
+
+    [Parallel(n_jobs=4)]: Using backend LokyBackend with 4 concurrent workers.
+    [Parallel(n_jobs=4)]: Done  24 tasks      | elapsed:  1.8min
+    [Parallel(n_jobs=4)]: Done 120 tasks      | elapsed:  9.5min
+    [Parallel(n_jobs=4)]: Done 150 out of 150 | elapsed: 11.8min finished
+
+
+    [04:59:22] WARNING: /workspace/src/objective/regression_obj.cu:152: reg:linear is now deprecated in favor of reg:squarederror.
+    
+     Time taken: 0 hours 11 minutes and 58.26 seconds.
+
+
+
+```python
+random_search.best_params_
+```
+
+
+
+
+    {'colsample_bytree': 0.6,
+     'gamma': 0,
+     'max_depth': 5,
+     'min_child_weight': 5,
+     'subsample': 1.0}
+
+
+
+## Evaluate the best XGBoost Regressor
+
+
+```python
+y_hat_exp = random_search.best_estimator_.predict(X_xgbr)
+y_exp = Y_xgbr
+
+plt.figure(figsize=(10,10))
+sns.scatterplot(y_exp, y_hat_exp, alpha=0.05)
+plt.xlabel('Actual Price')
+plt.ylabel('Predicted Price')
+limiter = 2000000
+plt.xlim(0, limiter)
+plt.ylim(0, limiter)
+plt.title('Predicted Price versus Actual')
+sns.lineplot(x=[0, limiter], y=[0, limiter]);
+plt.show()
+
+
+plt.figure(figsize=(10,10))
+sns.scatterplot(y_exp, y_exp - y_hat_exp, alpha=0.05)
+plt.xlabel('Actual Price')
+plt.ylabel('Residual')
+plt.xlim(0,limiter)
+plt.ylim(-500000,500000)
+plt.title('Residual Plot versus Actual Price')
+sns.lineplot(x=[0,6000000], y=[0, 0]);
+```
+
+
+![png](images/output_111_0.png)
+
+
+
+![png](images/output_111_1.png)
+
+
+
+```python
+y_limit = 10000000
+y_exp_filter = y_exp[y_exp < y_limit]
+y_hat_exp_filter = y_hat_exp[y_exp < y_limit]
+
+
+print('**For prices under ${:,}**:'.format(y_limit))
+print('Average Absolute Error: ${0:,.0f}'.format(np.mean(abs(y_exp_filter - y_hat_exp_filter))))
+print('Average Percent Error: {0:.2f}%'.format(100 * np.mean(abs(y_exp_filter - y_hat_exp_filter)) / y_exp_filter.mean()))
+print('Average of Absolute Error for each: {0:.2f}%'.format(100*np.mean(abs(y_exp_filter - y_hat_exp_filter)/y_exp_filter)))
+```
+
+    **For prices under $10,000,000**:
+    Average Absolute Error: $72,521
+    Average Percent Error: 13.43%
+    Average of Absolute Error for each: 15.02%
+
+
+So the best XGBoost Regressor model did achieve more accurate results than the linear regression, with average percent error of 13.43% versus 19.44% in the linear regression.
+
+The negative tradeoff in using this model is losing the explanatory value of the coefficients in the linear regression model.
 
